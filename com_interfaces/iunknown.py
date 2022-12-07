@@ -49,6 +49,7 @@ from typing import get_args, get_type_hints
 ole32 = oledll.ole32
 CLSCTX_INPROC_SERVER = 0x1
 
+# Access COM methods from Python https://stackoverflow.com/q/48986244
 ole32.CoInitialize(None)  # instead of `import pythoncom`
 
 class Guid(Structure):
