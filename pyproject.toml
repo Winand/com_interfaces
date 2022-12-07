@@ -1,0 +1,10 @@
+# https://packaging.python.org/en/latest/tutorials/packaging-projects/
+# pip install build
+# python3 -m build
+
+[project]
+name = "com_interfaces"
+dynamic = ["version"]  # https://setuptools.pypa.io/en/latest/userguide/pyproject_config.html#dynamic-metadata
+
+[tool.setuptools.dynamic]
+version = {attr = "com_interfaces.__version__"}

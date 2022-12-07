@@ -1,0 +1,3 @@
+from com_interfaces.interfaces.ipersistfile import IPersistFile
+from com_interfaces.interfaces.ishelllink import IShellLink
+from com_interfaces.interfaces.itaskbarlist3 import ITaskBarList3
