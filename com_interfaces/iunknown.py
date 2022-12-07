@@ -40,9 +40,7 @@ But this is not recommended because those methods are not recognized by linter.
 
 import logging
 from ctypes import (HRESULT, POINTER, WINFUNCTYPE, Structure, byref, c_short,
-                    c_ubyte, c_uint, c_void_p, c_wchar_p, cast,
-                    create_unicode_buffer, oledll, pointer)
-from ctypes.wintypes import BYTE, DWORD, INT, MAX_PATH, USHORT, WCHAR, WORD
+                    c_ubyte, c_uint, c_void_p, cast, oledll)
 from types import FunctionType
 from typing import Optional, TypeVar
 from typing import Union as U
@@ -53,14 +51,6 @@ CLSCTX_INPROC_SERVER = 0x1
 
 ole32.CoInitialize(None)  # instead of `import pythoncom`
 
-################################ ENUMERATIONS #################################
-class SLGP:  # SLGP_FLAGS https://github.com/tpn/winsdk-10/blob/9b69fd26ac0c7d0b83d378dba01080e93349c2ed/Include/10.0.16299.0/um/ShObjIdl_core.h#L11230
-    SHORTPATH = 1
-    UNCPRIORITY = 2
-    RAWPATH = 4
-    RELATIVEPRIORITY = 8
-
-################################# STRUCTURES ##################################
 class Guid(Structure):
     _fields_ = [("Data1", c_uint),
                 ("Data2", c_short),
@@ -70,38 +60,6 @@ class Guid(Structure):
     def __init__(self, name):
         ole32.CLSIDFromString(name, byref(self))
 
-class FILETIME(Structure):
-    _fields_ = [
-        ("dwLowDateTime", DWORD),
-        ("dwHighDateTime", DWORD),
-    ]
-
-class WIN32_FIND_DATA(Structure):
-    _fields_ = [
-        ("dwFileAttributes", DWORD),
-        ("ftCreationTime", FILETIME),
-        ("ftLastAccessTime", FILETIME),
-        ("ftLastWriteTime", FILETIME),
-        ("nFileSizeHigh", DWORD),
-        ("nFileSizeLow", DWORD),
-        ("dwReserved0", DWORD),
-        ("dwReserved1", DWORD),
-        ("cFileName", WCHAR * MAX_PATH),
-        ("cAlternateFileName", WCHAR * 14),
-        ("dwFileType", DWORD),  # Obsolete. Do not use.
-        ("dwCreatorType", DWORD),  # Obsolete. Do not use
-        ("wFinderFlags", WORD),  # Obsolete. Do not use
-    ]
-
-class SHITEMID(Structure):
-    _fields_ = [
-        ("cb", USHORT),
-        ("abID", BYTE * 1),
-    ]
-class ITEMIDLIST(Structure):
-    _fields_ = [
-        ("mkid", SHITEMID)]
-###############################################################################
 
 def interface(cls):
     # if "clsid" not in cls.__dict__ or "iid" not in cls.__dict__:
