@@ -41,7 +41,8 @@ But this is not recommended because those methods are not recognized by linter.
 import logging
 from ctypes import (HRESULT, POINTER, WINFUNCTYPE, Structure, byref, c_short,
                     c_ubyte, c_uint, c_void_p, cast, oledll)
-from types import FunctionType
+from dataclasses import dataclass, fields
+from types import FunctionType, new_class
 from typing import Optional, TypeVar
 from typing import Union as U
 from typing import get_args, get_type_hints
@@ -61,6 +62,15 @@ class Guid(Structure):
     def __init__(self, name):
         ole32.CLSIDFromString(name, byref(self))
 
+
+def structure(Cls):
+    "dataclass-like class to ctypes Structure conversion"
+    if len(Cls.__bases__) != 1:
+        raise TypeError('Multiple inheritance is not supported')
+    ClsStruct = dataclass(new_class(Cls.__name__, (Structure,), exec_body=lambda ns: ns.update(Cls.__dict__)))
+    setattr(ClsStruct, '_fields_', [(i.name, i.type) for i in fields(ClsStruct)])
+    del ClsStruct.__init__  # skip initialization, FIXME: why init=False fails
+    return ClsStruct
 
 def interface(cls):
     # if "clsid" not in cls.__dict__ or "iid" not in cls.__dict__:

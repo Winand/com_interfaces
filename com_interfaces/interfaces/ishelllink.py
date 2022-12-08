@@ -3,7 +3,7 @@ from ctypes.wintypes import BYTE, DWORD, INT, MAX_PATH, USHORT, WCHAR, WORD
 from typing import Optional
 from typing import Union as U
 
-from com_interfaces import CArgObject, IUnknown, interface, method
+from com_interfaces import CArgObject, IUnknown, interface, method, structure
 from com_interfaces.interfaces import IPersistFile
 
 
@@ -15,37 +15,40 @@ class SLGP:  # SLGP_FLAGS https://github.com/tpn/winsdk-10/blob/9b69fd26ac0c7d0b
     RELATIVEPRIORITY = 8
 
 ################################# STRUCTURES ##################################
-class FILETIME(Structure):
-    _fields_ = [
-        ("dwLowDateTime", DWORD),
-        ("dwHighDateTime", DWORD),
-    ]
+@structure
+class FILETIME:
+    dwLowDateTime: DWORD
+    dwHighDateTime: DWORD
 
-class WIN32_FIND_DATA(Structure):
-    _fields_ = [
-        ("dwFileAttributes", DWORD),
-        ("ftCreationTime", FILETIME),
-        ("ftLastAccessTime", FILETIME),
-        ("ftLastWriteTime", FILETIME),
-        ("nFileSizeHigh", DWORD),
-        ("nFileSizeLow", DWORD),
-        ("dwReserved0", DWORD),
-        ("dwReserved1", DWORD),
-        ("cFileName", WCHAR * MAX_PATH),
-        ("cAlternateFileName", WCHAR * 14),
-        ("dwFileType", DWORD),  # Obsolete. Do not use.
-        ("dwCreatorType", DWORD),  # Obsolete. Do not use
-        ("wFinderFlags", WORD),  # Obsolete. Do not use
-    ]
+@structure
+class WIN32_FIND_DATA:
+    WCHAR__MAX_PATH = WCHAR * MAX_PATH
+    WCHAR__14 = WCHAR * 14
 
-class SHITEMID(Structure):
-    _fields_ = [
-        ("cb", USHORT),
-        ("abID", BYTE * 1),
-    ]
-class ITEMIDLIST(Structure):
-    _fields_ = [
-        ("mkid", SHITEMID)]
+    dwFileAttributes: DWORD
+    ftCreationTime: FILETIME
+    ftLastAccessTime: FILETIME
+    ftLastWriteTime: FILETIME
+    nFileSizeHigh: DWORD
+    nFileSizeLow: DWORD
+    dwReserved0: DWORD
+    dwReserved1: DWORD
+    cFileName: WCHAR__MAX_PATH
+    cAlternateFileName: WCHAR__14
+    dwFileType: DWORD  # Obsolete. Do not use.
+    dwCreatorType: DWORD  # Obsolete. Do not use
+    wFinderFlags: WORD  # Obsolete. Do not use
+
+@structure
+class SHITEMID:
+    BYTE__1 = BYTE * 1
+
+    cb: USHORT
+    abID: BYTE__1
+
+@structure
+class ITEMIDLIST:
+    mkid: SHITEMID
 ###############################################################################
 
 
