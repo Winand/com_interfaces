@@ -190,7 +190,7 @@ class IUnknown:
                 lambda *args, f=win_func: f(self.ptr, *args)
             )
     
-    def query_interface(self, IID: type[T]) -> T:
+    def query_interface(self, IID: Type[T]) -> T:
         "Helper method for QueryInterface"
         ptr = c_void_p()
         self.QueryInterface(byref(IID.iid), byref(ptr))
