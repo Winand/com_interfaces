@@ -60,7 +60,7 @@ class DT:
     PIDLIST_ABSOLUTE = POINTER(POINTER(ITEMIDLIST))  # https://microsoft.public.win32.programmer.ui.narkive.com/p5Xl5twk/where-is-pidlist-absolute-defined
 
 
-@interface
+@interface("{000214F9-0000-0000-C000-000000000046}", clsid="{00021401-0000-0000-C000-000000000046}")
 class IShellLink(IUnknown):
     """
     Exposes methods that create, modify, and resolve Shell links.
@@ -69,8 +69,6 @@ class IShellLink(IUnknown):
     IShellLinkW https://learn.microsoft.com/en-us/windows/win32/api/shobjidl_core/nn-shobjidl_core-ishelllinkw
     IShellLinkW (source) https://github.com/tpn/winsdk-10/blob/9b69fd26ac0c7d0b83d378dba01080e93349c2ed/Include/10.0.16299.0/um/ShObjIdl_core.h#L11527
     """
-    clsid = CLSID_ShellLink = "{00021401-0000-0000-C000-000000000046}"
-    iid = IID_IShellLink  = "{000214F9-0000-0000-C000-000000000046}"
     LPTSTR = WCHAR * MAX_PATH  # https://habr.com/ru/post/164193
 
     @method(index=3)

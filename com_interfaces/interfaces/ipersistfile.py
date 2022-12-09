@@ -2,7 +2,7 @@ from ctypes import c_wchar_p
 from ctypes.wintypes import DWORD
 from typing import Union as U
 
-from com_interfaces import IUnknown, interface, method
+from com_interfaces import IUnknown, interface, method, Guid
 
 
 class DT:
@@ -20,8 +20,8 @@ class IPersistFile(IUnknown):
     IPersist (source) https://github.com/tpn/winsdk-10/blob/9b69fd26ac0c7d0b83d378dba01080e93349c2ed/Include/10.0.16299.0/um/ObjIdl.h#L9140
     IPersistFile (source) https://github.com/tpn/winsdk-10/blob/9b69fd26ac0c7d0b83d378dba01080e93349c2ed/Include/10.0.16299.0/um/ObjIdl.h#L10336
     """
-    clsid = CLSID_ShellLink = "{00021401-0000-0000-C000-000000000046}"
-    iid = IID_IPersistFile = "{0000010b-0000-0000-C000-000000000046}"
+    clsid = CLSID_ShellLink = Guid("{00021401-0000-0000-C000-000000000046}")
+    iid = IID_IPersistFile = Guid("{0000010b-0000-0000-C000-000000000046}")
 
     @method(index=5)
     def Load(self, pszFileName: DT.LPCOLESTR, dwMode: DT.DWORD):

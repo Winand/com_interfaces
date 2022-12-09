@@ -43,9 +43,11 @@ from ctypes import (HRESULT, POINTER, WINFUNCTYPE, Structure, byref, c_short,
                     c_ubyte, c_uint, c_void_p, cast, oledll)
 from dataclasses import dataclass, fields
 from types import FunctionType, new_class
-from typing import Optional, TypeVar
+from typing import Optional, Type, TypeVar
 from typing import Union as U
 from typing import get_args, get_type_hints
+
+T = TypeVar('T')
 
 ole32 = oledll.ole32
 CLSCTX_INPROC_SERVER = 0x1
@@ -72,45 +74,56 @@ def structure(Cls):
     del ClsStruct.__init__  # skip initialization, FIXME: why init=False fails
     return ClsStruct
 
-def interface(cls):
-    # if "clsid" not in cls.__dict__ or "iid" not in cls.__dict__:
-    #     raise ValueError(f"{cls.__name__}: clsid / iid class variables not found")
-    if len(cls.__bases__) != 1:
-        # https://stackoverflow.com/questions/70222391/com-multiple-interface-inheritance
-        raise TypeError('Multiple inheritance is not supported')
-    # if cls.__bases__[0] is object:
-    #     if cls.__name__ != 'IUnknown':
-    #         logging.warning(f"COM interfaces should be derived from IUnknown, not {cls.__name__}")
-    __func_table__ = getattr(cls.__bases__[0], '__func_table__', {}).copy()
-    for member_name, member in cls.__dict__.items():
-        if not isinstance(member, FunctionType):
-            continue
-        __com_func__ = getattr(member, '__com_func__', None)
-        if not __com_func__:
-            continue
-        __func_table__[member_name] = __com_func__
-    __methods__ = cls.__dict__.get('__methods__')
-    if isinstance(__methods__, dict):
-        # Collect COM methods from __methods__ dict:
-        # __methods__ = {
-        #     "Method1": {'index': 1, 'args': {"hwnd": DT.HWND}},
-        #     "Method2": {'index': 5, 'args': (HWND, INT)},
-        #     "Method3": {'index': 6},
-        # }
-        for member_name, info in __methods__.items():
-            if member_name in __func_table__:
-                logging.warning("Overriding existing method %s.%s", cls.__name__, member_name)
-            args = info.get('args', ())
-            if isinstance(args, dict):
-                args = tuple(args.values())
-            __func_table__[member_name] = {
-                'index': info['index'],
-                'args': WINFUNCTYPE(HRESULT, c_void_p,
-                    *((get_args(i) or [i])[0] for i in args)
-                )
-            }
-    setattr(cls, '__func_table__', __func_table__)
-    return cls
+def interface(iid: Optional[U[Type[T], str]]=None, clsid: Optional[str]=None) -> Type[T]:
+    def interface_(Cls: Type[T]):
+        if iid is not Cls:  # if @interface is used w/ brackets
+            if str and isinstance(iid, str):
+                setattr(Cls, 'iid', Guid(iid))
+            if clsid:
+                setattr(Cls, 'clsid', Guid(clsid))
+        # if "clsid" not in Cls.__dict__ or "iid" not in Cls.__dict__:
+        #     raise ValueError(f"{Cls.__name__}: clsid / iid class variables not found")
+        if len(Cls.__bases__) != 1:
+            # https://stackoverflow.com/questions/70222391/com-multiple-interface-inheritance
+            raise TypeError('Multiple inheritance is not supported')
+        # if Cls.__bases__[0] is object:
+        #     if Cls.__name__ != 'IUnknown':
+        #         logging.warning(f"COM interfaces should be derived from IUnknown, not {Cls.__name__}")
+        __func_table__ = getattr(Cls.__bases__[0], '__func_table__', {}).copy()
+        for member_name, member in Cls.__dict__.items():
+            if not isinstance(member, FunctionType):
+                continue
+            __com_func__ = getattr(member, '__com_func__', None)
+            if not __com_func__:
+                continue
+            __func_table__[member_name] = __com_func__
+        __methods__ = Cls.__dict__.get('__methods__')
+        if isinstance(__methods__, dict):
+            # Collect COM methods from __methods__ dict:
+            # __methods__ = {
+            #     "Method1": {'index': 1, 'args': {"hwnd": DT.HWND}},
+            #     "Method2": {'index': 5, 'args': (HWND, INT)},
+            #     "Method3": {'index': 6},
+            # }
+            for member_name, info in __methods__.items():
+                if member_name in __func_table__:
+                    logging.warning("Overriding existing method %s.%s", Cls.__name__, member_name)
+                args = info.get('args', ())
+                if isinstance(args, dict):
+                    args = tuple(args.values())
+                __func_table__[member_name] = {
+                    'index': info['index'],
+                    'args': WINFUNCTYPE(HRESULT, c_void_p,
+                        *((get_args(i) or [i])[0] for i in args)
+                    )
+                }
+        setattr(Cls, '__func_table__', __func_table__)
+        return Cls
+    if isinstance(iid, (str, type(None))):
+        # If @interface(..) is used w/ brackets linter generates type error here
+        return interface_  # type: ignore
+    # If @interface is used w/o brackets a class is passed to `iid` arg
+    return interface_(iid)
 
 def method(index):
     # https://stackoverflow.com/a/2367605
@@ -128,10 +141,10 @@ def method(index):
         return func
     return func_decorator
 
-def create_instance(clsid, iid):
+def create_instance(clsid: Guid, iid: Guid):
     ptr = c_void_p()
-    ole32.CoCreateInstance(byref(Guid(clsid)), 0, CLSCTX_INPROC_SERVER,
-                           byref(Guid(iid)), byref(ptr))
+    ole32.CoCreateInstance(byref(clsid), 0, CLSCTX_INPROC_SERVER,
+                           byref(iid), byref(ptr))
     return ptr
 
 
@@ -155,7 +168,9 @@ class IUnknown:
     IUnknown (DCOM) https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-dcom/2b4db106-fb79-4a67-b45f-63654f19c54c
     IUnknown (source) https://github.com/tpn/winsdk-10/blob/9b69fd26ac0c7d0b83d378dba01080e93349c2ed/Include/10.0.14393.0/um/Unknwn.h#L108
     """
-    clsid, iid, __func_table__ = None, "{00000000-0000-0000-C000-000000000046}", {}
+    clsid: Guid
+    iid: Guid = Guid("{00000000-0000-0000-C000-000000000046}")
+    __func_table__ = {}
     T = TypeVar('T', bound="IUnknown")
 
     def __init__(self, ptr: Optional[c_void_p]=None):
@@ -176,7 +191,7 @@ class IUnknown:
     def query_interface(self, IID: type[T]) -> T:
         "Helper method for QueryInterface"
         ptr = c_void_p()
-        self.QueryInterface(byref(Guid(IID.iid)), byref(ptr))
+        self.QueryInterface(byref(IID.iid), byref(ptr))
         return IID(ptr)
 
     @method(index=0)
