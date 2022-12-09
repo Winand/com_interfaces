@@ -40,6 +40,30 @@ class IExample(IUnknown):
 ```
 But this is not recommended because those methods are not recognized by linter.
 
+# IID and CLSID in Component Object Model ([COM](https://learn.microsoft.com/en-us/windows/win32/com/component-object-model--com--portal))
+IID is an interface identificator and [CLSID](https://learn.microsoft.com/en-us/windows/win32/com/clsid-key-hklm)
+identifies COM class objects. IID should be specified for any interface.
+CLSID is needed to instantiate an object which implements that interface.
+
+IID and optionally CLSID are specified as str arguments of `@interface` decorator:
+```
+@interface("{000214F9-0000-0000-C000-000000000046}", clsid="{00021401-0000-0000-C000-000000000046}")
+class IShellLink(IUnknown):
+    ...
+```
+Alternatively they can be specifid as `iid` and `clsid` variables of type `Guid` in class body:
+```
+@interface
+class IPersistFile(IUnknown):
+    clsid = Guid("{00021401-0000-0000-C000-000000000046}")
+    iid = Guid("{0000010b-0000-0000-C000-000000000046}")
+```
+
+# IUnknown
+In addition to `QueryInterface`, `AddRef` and `Release` methods `IUnknown` class
+has `query_interface(IID: type[T]) -> T` helper method, which returns an instance
+of a queried interface class.
+
 # Examples
-`com_interfaces.interfaces` contains several examples of COM interfaces:
-`IPersistFile`, `IShellLink`, `ITaskBarList3`.
+`com_interfaces.interfaces` contains several examples of COM interfaces inherited
+from `IUnknown`: `IPersistFile`, `IShellLink`, `ITaskBarList3`.
