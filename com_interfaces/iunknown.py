@@ -55,23 +55,25 @@ CLSCTX_INPROC_SERVER = 0x1
 # Access COM methods from Python https://stackoverflow.com/q/48986244
 ole32.CoInitialize(None)  # instead of `import pythoncom`
 
+# FIXME: if @structure is used linter doesn't understand byref(self)
 class Guid(Structure):
     _fields_ = [("Data1", c_uint),
                 ("Data2", c_short),
                 ("Data3", c_short),
                 ("Data4", c_ubyte*8)]
                 
-    def __init__(self, name):
+    def __init__(self, name: str):
         ole32.CLSIDFromString(name, byref(self))
 
-
-def structure(Cls):
+def structure(Cls: type) -> Type[Structure]:
     "dataclass-like class to ctypes Structure conversion"
     if len(Cls.__bases__) != 1:
         raise TypeError('Multiple inheritance is not supported')
     ClsStruct = dataclass(new_class(Cls.__name__, (Structure,), exec_body=lambda ns: ns.update(Cls.__dict__)))
     setattr(ClsStruct, '_fields_', [(i.name, i.type) for i in fields(ClsStruct)])
-    del ClsStruct.__init__  # skip initialization, FIXME: why init=False fails
+    # (!) dataclass is used for printing contents, but dataclass initialization is
+    # not needed, replace it with the original __init__. FIXME: why init=False fails
+    setattr(ClsStruct, '__init__', Cls.__init__)
     return ClsStruct
 
 def interface(iid: Optional[U[Type[T], str]]=None, clsid: Optional[str]=None) -> Type[T]:
