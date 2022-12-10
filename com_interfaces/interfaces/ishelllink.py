@@ -1,6 +1,7 @@
-from ctypes import POINTER, Structure, byref, create_unicode_buffer, pointer
+from ctypes import POINTER, byref, c_wchar_p, create_unicode_buffer, pointer
 from ctypes.wintypes import BYTE, DWORD, INT, MAX_PATH, USHORT, WCHAR, WORD
-from typing import Optional
+from os import PathLike
+from typing import Optional, Tuple
 from typing import Union as U
 
 from com_interfaces import CArgObject, IUnknown, interface, method, structure
@@ -58,6 +59,9 @@ class DT:
     INT = U[INT, int]
     WIN32_FIND_DATA_p = U[POINTER(WIN32_FIND_DATA), CArgObject]
     PIDLIST_ABSOLUTE = POINTER(POINTER(ITEMIDLIST))  # https://microsoft.public.win32.programmer.ui.narkive.com/p5Xl5twk/where-is-pidlist-absolute-defined
+    LPWSTR = WCHAR * MAX_PATH  # https://habr.com/ru/post/164193
+    LPCWSTR = U[c_wchar_p, str]
+    StrPath = U[PathLike, str]
 
 
 @interface("{000214F9-0000-0000-C000-000000000046}", clsid="{00021401-0000-0000-C000-000000000046}")
@@ -69,10 +73,9 @@ class IShellLink(IUnknown):
     IShellLinkW https://learn.microsoft.com/en-us/windows/win32/api/shobjidl_core/nn-shobjidl_core-ishelllinkw
     IShellLinkW (source) https://github.com/tpn/winsdk-10/blob/9b69fd26ac0c7d0b83d378dba01080e93349c2ed/Include/10.0.16299.0/um/ShObjIdl_core.h#L11527
     """
-    LPTSTR = WCHAR * MAX_PATH  # https://habr.com/ru/post/164193
 
     @method(index=3)
-    def GetPath(self, pszFile: LPTSTR, cch: DT.INT, pfd: DT.WIN32_FIND_DATA_p, fFlags: DT.DWORD):
+    def GetPath(self, pszFile: DT.LPWSTR, cch: DT.INT, pfd: DT.WIN32_FIND_DATA_p, fFlags: DT.DWORD):
         """
         Gets the path and file name of the target of a Shell link object.
         """
@@ -99,3 +102,44 @@ class IShellLink(IUnknown):
         idlist = POINTER(ITEMIDLIST)()
         self.GetIDList(pointer(idlist))
         return idlist
+
+    @method(index=7)
+    def SetDescription(self, pszName: DT.LPCWSTR):
+        """
+        Sets the description for a Shell link object
+        """
+
+    @method(index=9)
+    def SetWorkingDirectory(self, pszDir: DT.LPCWSTR):
+        """
+        Sets the name of the working directory for a Shell link object
+        """
+
+    @method(index=17)
+    def SetIconLocation(self, pszIconPath: DT.LPCWSTR, iIcon: DT.INT):
+        """
+        Sets the location (path and index) of the icon for a Shell link object
+        """
+
+    @method(index=20)
+    def SetPath(self, pszFile: DT.LPCWSTR):
+        """
+        Sets the path and file name for the target of a Shell link object
+        """
+
+    def create_link(self, link_path: DT.StrPath, src_path: DT.StrPath,
+                    description: str="", icon_path: Optional[Tuple[DT.StrPath, int]]=None,
+                    working_dir: Optional[DT.StrPath]=None):
+        """
+        Helper method to create a link.
+        Based on https://stackoverflow.com/q/22647661 C++ example
+        """
+        self.SetPath(str(src_path))
+        if working_dir:
+            self.SetWorkingDirectory(str(working_dir))
+        if description:
+            self.SetDescription(description)
+        if icon_path:
+            self.SetIconLocation(str(icon_path[0]), icon_path[1])
+        ppf = self.query_interface(IPersistFile)
+        ppf.Save(str(link_path), False)

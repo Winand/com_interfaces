@@ -1,5 +1,5 @@
 from ctypes import c_wchar_p
-from ctypes.wintypes import DWORD
+from ctypes.wintypes import DWORD, BOOL
 from typing import Union as U
 
 from com_interfaces import IUnknown, interface, method, Guid
@@ -9,6 +9,7 @@ class DT:
     "Additional data types for type hints"
     DWORD = U[DWORD, int]
     LPCOLESTR = U[c_wchar_p, str]  # https://stackoverflow.com/a/1607840
+    BOOL = U[BOOL, bool]
 
 
 @interface
@@ -34,3 +35,9 @@ class IPersistFile(IUnknown):
         buf = c_wchar_p(pszFileName)
         if self.Load(buf, dwMode):
             raise WindowsError("Load failed.")
+
+    @method(index=6)
+    def Save(self, pszFileName: DT.LPCOLESTR, fRemember: DT.BOOL):
+        """
+        Saves a copy of the object to the specified file
+        """
