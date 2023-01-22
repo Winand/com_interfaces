@@ -58,7 +58,8 @@ class DT:
     DWORD = U[DWORD, int]
     INT = U[INT, int]
     WIN32_FIND_DATA_p = U[POINTER(WIN32_FIND_DATA), CArgObject]
-    PIDLIST_ABSOLUTE = POINTER(POINTER(ITEMIDLIST))  # https://microsoft.public.win32.programmer.ui.narkive.com/p5Xl5twk/where-is-pidlist-absolute-defined
+    # https://microsoft.public.win32.programmer.ui.narkive.com/p5Xl5twk/where-is-pidlist-absolute-defined noqa
+    PIDLIST_ABSOLUTE = POINTER(POINTER(ITEMIDLIST))
     LPWSTR = WCHAR * MAX_PATH  # https://habr.com/ru/post/164193
     LPCWSTR = U[c_wchar_p, str]
     StrPath = U[PathLike, str]

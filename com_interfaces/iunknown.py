@@ -57,49 +57,60 @@ ole32.CoInitialize(None)  # instead of `import pythoncom`
 
 # FIXME: if @structure is used linter doesn't understand byref(self)
 class Guid(Structure):
+    """
+    A GUID identifies an object such as a COM interfaces, or a COM class object
+    https://learn.microsoft.com/en-us/windows/win32/api/guiddef/ns-guiddef-guid
+    """
     _fields_ = [("Data1", c_uint),
                 ("Data2", c_short),
                 ("Data3", c_short),
                 ("Data4", c_ubyte*8)]
-                
+
     def __init__(self, name: str):
         ole32.CLSIDFromString(name, byref(self))
 
-def structure(Cls: type) -> Type[Structure]:
+def structure(cls: Type[T]) -> Type[T]:
     "dataclass-like class to ctypes Structure conversion"
-    if len(Cls.__bases__) != 1:
+    if len(cls.__bases__) != 1:
         raise TypeError('Multiple inheritance is not supported')
-    ClsStruct = dataclass(new_class(Cls.__name__, (Structure,), exec_body=lambda ns: ns.update(Cls.__dict__)))
-    setattr(ClsStruct, '_fields_', [(i.name, i.type) for i in fields(ClsStruct)])
+    cls_struct = dataclass(new_class(
+        cls.__name__, (Structure,),
+        exec_body=lambda ns: ns.update(cls.__dict__)
+    ))
+    setattr(cls_struct, '_fields_', [(i.name, (get_args(i.type) or [i.type])[0]) for i in fields(cls_struct)])
     # (!) dataclass is used for printing contents, but dataclass initialization is
     # not needed, replace it with the original __init__. FIXME: why init=False fails
-    setattr(ClsStruct, '__init__', Cls.__init__)
-    return ClsStruct
+    setattr(cls_struct, '__init__', cls.__init__)
+    return cls_struct
 
 def interface(iid: Optional[U[Type[T], str]]=None, clsid: Optional[str]=None) -> Type[T]:
-    def interface_(Cls: Type[T]):
-        if iid is not Cls:  # if @interface is used w/ brackets
+    """
+    @interface class decorator collects all methods containing __com_func__
+    variable into __func_table__ dict of a class.
+    """
+    def interface_(cls: Type[T]):
+        if iid is not cls:  # if @interface is used w/ brackets
             if str and isinstance(iid, str):
-                setattr(Cls, 'iid', Guid(iid))
+                setattr(cls, 'iid', Guid(iid))
             if clsid:
-                setattr(Cls, 'clsid', Guid(clsid))
+                setattr(cls, 'clsid', Guid(clsid))
         # if "clsid" not in Cls.__dict__ or "iid" not in Cls.__dict__:
         #     raise ValueError(f"{Cls.__name__}: clsid / iid class variables not found")
-        if len(Cls.__bases__) != 1:
+        if len(cls.__bases__) != 1:
             # https://stackoverflow.com/questions/70222391/com-multiple-interface-inheritance
             raise TypeError('Multiple inheritance is not supported')
         # if Cls.__bases__[0] is object:
         #     if Cls.__name__ != 'IUnknown':
         #         logging.warning(f"COM interfaces should be derived from IUnknown, not {Cls.__name__}")
-        __func_table__ = getattr(Cls.__bases__[0], '__func_table__', {}).copy()
-        for member_name, member in Cls.__dict__.items():
+        __func_table__ = getattr(cls.__bases__[0], '__func_table__', {}).copy()
+        for member_name, member in cls.__dict__.items():
             if not isinstance(member, FunctionType):
                 continue
             __com_func__ = getattr(member, '__com_func__', None)
             if not __com_func__:
                 continue
             __func_table__[member_name] = __com_func__
-        __methods__ = Cls.__dict__.get('__methods__')
+        __methods__ = cls.__dict__.get('__methods__')
         if isinstance(__methods__, dict):
             # Collect COM methods from __methods__ dict:
             # __methods__ = {
@@ -109,7 +120,7 @@ def interface(iid: Optional[U[Type[T], str]]=None, clsid: Optional[str]=None) ->
             # }
             for member_name, info in __methods__.items():
                 if member_name in __func_table__:
-                    logging.warning("Overriding existing method %s.%s", Cls.__name__, member_name)
+                    logging.warning("Overriding existing method %s.%s", cls.__name__, member_name)
                 args = info.get('args', ())
                 if isinstance(args, dict):
                     args = tuple(args.values())
@@ -119,8 +130,8 @@ def interface(iid: Optional[U[Type[T], str]]=None, clsid: Optional[str]=None) ->
                         *((get_args(i) or [i])[0] for i in args)
                     )
                 }
-        setattr(Cls, '__func_table__', __func_table__)
-        return Cls
+        setattr(cls, '__func_table__', __func_table__)
+        return cls
     if isinstance(iid, (str, type(None))):
         # If @interface(..) is used w/ brackets linter generates type error here
         return interface_  # type: ignore
@@ -128,6 +139,7 @@ def interface(iid: Optional[U[Type[T], str]]=None, clsid: Optional[str]=None) ->
     return interface_(iid)
 
 def method(index):
+    "Saves index and arguments in a __com_func__ variable of a method"
     # https://stackoverflow.com/a/2367605
     def func_decorator(func):
         type_hints = get_type_hints(func)
@@ -144,6 +156,10 @@ def method(index):
     return func_decorator
 
 def create_instance(clsid: Guid, iid: Guid):
+    """
+    Helper method for CoCreateInstance. Creates and default-initializes
+    a single object of the class associated with a specified CLSID.
+    """
     ptr = c_void_p()
     ole32.CoCreateInstance(byref(clsid), 0, CLSCTX_INPROC_SERVER,
                            byref(iid), byref(ptr))
@@ -158,6 +174,7 @@ class DT:
     void_pp = U[POINTER(c_void_p), CArgObject]
 
 
+# pylint: disable=invalid-name
 @interface
 class IUnknown:
     """
@@ -189,7 +206,7 @@ class IUnknown:
             setattr(self, func_name,
                 lambda *args, f=win_func: f(self.ptr, *args)
             )
-    
+
     def query_interface(self, IID: Type[T]) -> T:
         "Helper method for QueryInterface"
         ptr = c_void_p()
@@ -200,7 +217,7 @@ class IUnknown:
     def QueryInterface(self, riid: DT.REFIID, ppvObject: DT.void_pp) -> HRESULT:
         "Retrieves pointers to the supported interfaces on an object."
         raise NotImplementedError
-    
+
     @method(index=1)
     def AddRef(self) -> HRESULT:
         "Increments the reference count for an interface pointer to a COM object"
@@ -215,5 +232,6 @@ class IUnknown:
         if self.ptr:
             self.Release()
 
-    def isAccessible(self):
+    def is_accessible(self):
+        "Check pointer to an object"
         return bool(self.ptr)
