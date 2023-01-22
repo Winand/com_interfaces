@@ -1,3 +1,7 @@
 ﻿*.pyc
 *.egg-info
 dist
+.venv
+experiments
+.vscode
+.python-version
