@@ -1,16 +1,17 @@
 """
-Module provides functionality for instantiating and accessing Windows COM objects
-through interfaces.
+Module provides functionality for instantiating and accessing Windows COM
+objects through interfaces.
 
 A COM interface is described using class with methods. All COM interfaces are
 inherited from IUnknown interface.
 An interface has @interface decorator and each COM method declaration has
-@method(index=...) decorator where `index` is an index of that method in COM interface.
+@method(index=...) decorator where `index` is an index of that method in COM
+interface.
 E.g. IUnknown::QueryInterface has index 0, AddRef - index 1, Release - index 2.
 
 @method saves index and arguments in a __com_func__ variable of a method. Then
-@interface collects all methods containing that variable into __func_table__ dict
-of a class. At runtime IUnknown.__init__ creates an instance of a object
+@interface collects all methods containing that variable into __func_table__
+dict of a class. At runtime IUnknown.__init__ creates an instance of a object
 (if object pointer is not passed in arguments) and replaces all declarations
 with generated methods which call methods of that object. So if __init__ is
 overriden then super().__init__ should be called.
@@ -22,10 +23,11 @@ Example of a COM method declaration:
         def Load(self, pszFileName: DT.LPCOLESTR, dwMode: DT.DWORD):
             ...
 Argument type hint may be a Union. Only the first type is used for COM method
-initialization. So you can use Union[c_wchar_p, str] to pass string w/o linting error.
-Optionally you may raise NotImplementedError in COM method declaration so you never call
-those stub methods in runtime accidentally, e.g. in case of not initializing a method
-(missing @method decorator, IUnknown.__init__ not called etc.).
+initialization. So you can use Union[c_wchar_p, str] to pass string w/o linting
+error. Optionally you may raise NotImplementedError in COM method declaration
+so you never call those stub methods in runtime accidentally, e.g. in case of
+not initializing a method (missing @method decorator, IUnknown.__init__ not
+called etc.).
 
 Alternatively COM methods can be described in __methods__ dict of a class:
     @interface
@@ -55,6 +57,7 @@ CLSCTX_INPROC_SERVER = 0x1
 # Access COM methods from Python https://stackoverflow.com/q/48986244
 ole32.CoInitialize(None)  # instead of `import pythoncom`
 
+
 # FIXME: if @structure is used linter doesn't understand byref(self)
 class Guid(Structure):
     """
@@ -69,6 +72,7 @@ class Guid(Structure):
     def __init__(self, name: str):
         ole32.CLSIDFromString(name, byref(self))
 
+
 def structure(cls: Type[T]) -> Type[T]:
     "dataclass-like class to ctypes Structure conversion"
     if len(cls.__bases__) != 1:
@@ -77,13 +81,18 @@ def structure(cls: Type[T]) -> Type[T]:
         cls.__name__, (Structure,),
         exec_body=lambda ns: ns.update(cls.__dict__)
     ))
-    setattr(cls_struct, '_fields_', [(i.name, (get_args(i.type) or [i.type])[0]) for i in fields(cls_struct)])
-    # (!) dataclass is used for printing contents, but dataclass initialization is
-    # not needed, replace it with the original __init__. FIXME: why init=False fails
+    setattr(cls_struct, '_fields_', [
+        (i.name, (get_args(i.type) or [i.type])[0]) for i in fields(cls_struct)
+    ])
+    # (!) dataclass is used for printing contents, but dataclass initialization
+    # is not needed, replace it with the original __init__.
+    # FIXME: why init=False fails
     setattr(cls_struct, '__init__', cls.__init__)
     return cls_struct
 
-def interface(iid: Optional[U[Type[T], str]]=None, clsid: Optional[str]=None) -> Type[T]:
+
+def interface(iid: Optional[U[Type[T], str]] = None,
+              clsid: Optional[str] = None) -> Type[T]:
     """
     @interface class decorator collects all methods containing __com_func__
     variable into __func_table__ dict of a class.
@@ -120,7 +129,8 @@ def interface(iid: Optional[U[Type[T], str]]=None, clsid: Optional[str]=None) ->
             # }
             for member_name, info in __methods__.items():
                 if member_name in __func_table__:
-                    logging.warning("Overriding existing method %s.%s", cls.__name__, member_name)
+                    logging.warning("Overriding existing method %s.%s",
+                                    cls.__name__, member_name)
                 args = info.get('args', ())
                 if isinstance(args, dict):
                     args = tuple(args.values())
@@ -133,10 +143,11 @@ def interface(iid: Optional[U[Type[T], str]]=None, clsid: Optional[str]=None) ->
         setattr(cls, '__func_table__', __func_table__)
         return cls
     if isinstance(iid, (str, type(None))):
-        # If @interface(..) is used w/ brackets linter generates type error here
+        # If @interface(..) is used w/ brackets linter generates type error
         return interface_  # type: ignore
     # If @interface is used w/o brackets a class is passed to `iid` arg
     return interface_(iid)
+
 
 def method(index):
     "Saves index and arguments in a __com_func__ variable of a method"
@@ -155,6 +166,7 @@ def method(index):
         return func
     return func_decorator
 
+
 def create_instance(clsid: Guid, iid: Guid):
     """
     Helper method for CoCreateInstance. Creates and default-initializes
@@ -168,6 +180,7 @@ def create_instance(clsid: Guid, iid: Guid):
 
 CArgObject = type(byref(c_void_p()))
 
+
 class DT:
     "Additional data types for type hints"
     REFIID = U[POINTER(Guid), CArgObject]
@@ -178,12 +191,13 @@ class DT:
 @interface
 class IUnknown:
     """
-    The IUnknown interface enables clients to retrieve pointers to other interfaces
-    on a given object through the QueryInterface method, and to manage the existence
-    of the object through the AddRef and Release methods. All other COM interfaces are
-    inherited, directly or indirectly, from IUnknown.
+    The IUnknown interface enables clients to retrieve pointers to other
+    interfaces on a given object through the QueryInterface method, and to
+    manage the existence of the object through the AddRef and Release methods.
+    All other COM interfaces are inherited, directly or indirectly, from
+    IUnknown.
 
-    IUnknown https://learn.microsoft.com/en-us/windows/win32/api/unknwn/nn-unknwn-iunknown
+    IUnknown https://learn.microsoft.com/en-us/windows/win32/api/unknwn/nn-unknwn-iunknown  # noqa
     IUnknown (DCOM) https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-dcom/2b4db106-fb79-4a67-b45f-63654f19c54c
     IUnknown (source) https://github.com/tpn/winsdk-10/blob/9b69fd26ac0c7d0b83d378dba01080e93349c2ed/Include/10.0.14393.0/um/Unknwn.h#L108
     """
@@ -192,7 +206,7 @@ class IUnknown:
     __func_table__ = {}
     T = TypeVar('T', bound="IUnknown")
 
-    def __init__(self, ptr: Optional[c_void_p]=None):
+    def __init__(self, ptr: Optional[c_void_p] = None):
         "Creates an instance and generates methods"
         self.ptr = ptr or create_instance(self.clsid, self.iid)
         # Access COM methods from Python https://stackoverflow.com/a/49053176
@@ -201,7 +215,7 @@ class IUnknown:
         wk = c_void_p(vtable[0])
         functions = cast(wk, POINTER(c_void_p))  # method list
         for func_name, __com_opts__ in self.__func_table__.items():
-            # Variable in a loop https://www.coursera.org/learn/golang-webservices-1/discussions/threads/0i1G0HswEemBSQpvxxG8fA/replies/m_pdt1kPQqS6XbdZD6Kkiw
+            # Variable in a loop https://www.coursera.org/learn/golang-webservices-1/discussions/threads/0i1G0HswEemBSQpvxxG8fA/replies/m_pdt1kPQqS6XbdZD6Kkiw  # noqa
             win_func = __com_opts__['args'](functions[__com_opts__['index']])
             setattr(self, func_name,
                 lambda *args, f=win_func: f(self.ptr, *args)
@@ -220,7 +234,9 @@ class IUnknown:
 
     @method(index=1)
     def AddRef(self) -> HRESULT:
-        "Increments the reference count for an interface pointer to a COM object"
+        """
+        Increments the reference count for an interface pointer to a COM object
+        """
         raise NotImplementedError
 
     @method(index=2)
