@@ -1,10 +1,15 @@
-# https://packaging.python.org/en/latest/tutorials/packaging-projects/
-# pip install build
-# python3 -m build
+[tool.poetry]
+name = "com-interfaces"
+version = "1.0.1"
+description = ""
+authors = ["Makarov Andrey <winandfx@gmail.com>"]
+readme = "README.md"
+packages = [{include = "com_interfaces"}]
 
-[project]
-name = "com_interfaces"
-dynamic = ["version"]  # https://setuptools.pypa.io/en/latest/userguide/pyproject_config.html#dynamic-metadata
+[tool.poetry.dependencies]
+python = "^3.8"
 
-[tool.setuptools.dynamic]
-version = {attr = "com_interfaces.__version__"}
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
